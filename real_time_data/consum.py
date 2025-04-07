@@ -6,18 +6,29 @@ from pyspark.sql.functions import col
 from datetime import datetime
 from threading import Thread
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType
+from pyspark.sql.window import Window
+from pyspark.sql.functions import last, first, col
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.ini')
 
 # Kafka & PostgreSQL Configuration
+#KAFKA_BROKER = config['Kafka']['KafkaBroker']
 KAFKA_BROKER = "localhost:9092"
+#TOPIC_NAME = config['Kafka']['TopicName']
 TOPIC_NAME = "anomaly_data"
+#DB_URL = config['WellDatabase']['DB_URL']
 DB_URL = "jdbc:postgresql://localhost:5432/postgres"
+#DB_PROPERTIES = config['WellDatabase']['DB_PROPERTIES']
 DB_PROPERTIES = {
-    "user": "postgres",
-    "password": "tranzmeo",
-    "driver": "org.postgresql.Driver"
+   "user": "postgres",
+   "password": "tranzmeo",
+   "driver": "org.postgresql.Driver"
 }
-
+#RAW_DATA_TABLE =config['WellDatabase']['RAW_DATA_TABLE']
 RAW_DATA_TABLE = "rawdata"
+#ANOMALY_TABLE = config['WellDatabase']['ANOMALY_TABLE']
 ANOMALY_TABLE = "anomaly"
 
 
@@ -35,8 +46,8 @@ consumer = KafkaConsumer(
 )
 
 anomaly_schema = StructType([
-    StructField("anomaly_time", TimestampType(), True),  # TIMESTAMPTZ equivalent
-    StructField("anomaly_type", StringType(), True)  # TEXT equivalent
+    StructField("anomaly_time", TimestampType(), True),
+    StructField("anomaly_type", StringType(), True)
 ])
 
 
@@ -58,7 +69,7 @@ for message in consumer:
 
     event_time = kafka_data.get('times', None)
     data_list = kafka_data.get('data', [])
-    anomaly_time = kafka_data.get('anomaly_times', None)
+    anomaly_time = kafka_data.get('anomaly_times')
     anomaly_type = kafka_data.get('anomaly_type', None)
 
     if data_list:
@@ -73,12 +84,32 @@ for message in consumer:
 
         df_data= spark.createDataFrame([(event_time, json_data)], ["time", "data"])
 
+
         anomaly_data = [(datetime.strptime(anomaly_time, "%Y-%m-%d %H:%M:%S") if anomaly_time else None, anomaly_type)]
     
         
         df_anomaly = spark.createDataFrame(anomaly_data, schema=anomaly_schema)
 
         df_anomaly = df_anomaly.withColumn("anomaly_time", col("anomaly_time").cast(TimestampType()))
+
+        window_spec = Window.orderBy("anomaly_type").rowsBetween(Window.unboundedPreceding, 0)  # for ffill
+        window_spec_b = Window.orderBy("anomaly_type").rowsBetween(0, Window.unboundedFollowing)  # for bfill
+
+        # Forward fill (ffill)
+        df_filled = df_anomaly.withColumn(
+            "time_ffill",
+        last("anomaly_time", ignorenulls=True).over(window_spec)
+        )
+
+        # Backward fill (bfill)
+        df_filled = df_filled.withColumn(
+            "time_filled",
+        first("time_ffill", ignorenulls=True).over(window_spec_b)
+        )
+
+        # Drop intermediate columns if needed
+        df_clean = df_filled.select(col("time_filled").alias("anomaly_time"), "anomaly_type")
+        print(df_clean)
 
         thread1 = Thread(target=write_to_postgres, args=(df_data, RAW_DATA_TABLE))
         thread2 = Thread(target=write_to_postgres, args=(df_anomaly, ANOMALY_TABLE))
@@ -89,4 +120,4 @@ for message in consumer:
         thread1.join()
         thread2.join()
 
-        print("Inserted into PostgreSQL: Both `rawdata` and `anomaly` tables (Parallel Execution)")
+        #print("Inserted into PostgreSQL: Both `rawdata` and `anomaly` tables (Parallel Execution)")

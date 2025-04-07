@@ -3,6 +3,13 @@ from kafka import KafkaProducer
 import json
 import asyncio
 import websockets
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+#KAFKA_BROKER = config['Kafka']['KafkaBroker']
+#TOPIC_NAME = config['Kafka']['TopicName']
 
 KAFKA_BROKER = "localhost:9092"
 TOPIC_NAME = "anomaly_data"
@@ -28,7 +35,8 @@ producer = KafkaProducer(
     max_request_size=20 * 1024 * 1024  # 20MB limit
 )
 
-
+#SERVER_IP = config['WellData']['ServerIp']
+#PORT = config['WellData']['Port']
 SERVER_IP = "192.168.1.222"
 PORT = "7891"
 WEBSOCKET_URL = f"ws://{SERVER_IP}:{PORT}"
