@@ -6,13 +6,11 @@ import websockets
 import configparser
 
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(r'/home/tranzmeo/Learning/model creation/AiTraining/config.ini')
 
-#KAFKA_BROKER = config['Kafka']['KafkaBroker']
-#TOPIC_NAME = config['Kafka']['TopicName']
 
-KAFKA_BROKER = "localhost:9092"
-TOPIC_NAME = "anomaly_data"
+KAFKA_BROKER = config['Kafka']['KafkaBroker']
+TOPIC_NAME = config['Kafka']['TopicName']
 
 
 admin_client = KafkaAdminClient(bootstrap_servers=KAFKA_BROKER)
@@ -32,17 +30,15 @@ admin_client.close()
 producer = KafkaProducer(
     bootstrap_servers=KAFKA_BROKER,
     value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-    max_request_size=20 * 1024 * 1024  # 20MB limit
+    max_request_size = 80 * 1024 * 1024  # 20MB limit
 )
 
-#SERVER_IP = config['WellData']['ServerIp']
-#PORT = config['WellData']['Port']
-SERVER_IP = "192.168.1.222"
-PORT = "7891"
-WEBSOCKET_URL = f"ws://{SERVER_IP}:{PORT}"
+SERVER_IP = config['WellData']['ServerIp']
+PORT_DTS = config['WellData']['Port_DTS']
+WEBSOCKET_URL = f"ws://{SERVER_IP}:{PORT_DTS}"
 
 async def fetch_data():
-    async with websockets.connect(WEBSOCKET_URL, max_size=10 * 1024 * 1024) as websocket:
+    async with websockets.connect(WEBSOCKET_URL, max_size = 80 * 1024 * 1024) as websocket:
         while True:
             try:
                 data = await websocket.recv()
