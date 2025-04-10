@@ -34,8 +34,8 @@ producer = KafkaProducer(
 )
 
 SERVER_IP = config['WellData']['ServerIp']
-PORT_DTS = config['WellData']['Port_DTS']
-WEBSOCKET_URL = f"ws://{SERVER_IP}:{PORT_DTS}"
+PORT_ANOM = config['WellData']['Port_anom']
+WEBSOCKET_URL = f"ws://{SERVER_IP}:{PORT_ANOM}"
 
 async def fetch_data():
     async with websockets.connect(WEBSOCKET_URL, max_size = 80 * 1024 * 1024) as websocket:
@@ -63,6 +63,8 @@ async def fetch_data():
                     #print(f"Sent: {message}")
                 else:
                     print("Ignored non-JSON object")
+
+    
 
             except websockets.exceptions.ConnectionClosed as e:
                 print(f"WebSocket connection closed: {e}")

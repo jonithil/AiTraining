@@ -65,15 +65,15 @@ print(f"Subscribed to topic: {TOPIC_NAME}")
 for message in consumer:
     kafka_data = message.value
     event_time = kafka_data.get('times', None)
-    data_list = kafka_data.get('data', [])
+    data_list = kafka_data.get('line_data', [])
     anomaly_time = kafka_data.get('anomaly_times')
     anomaly_type = kafka_data.get('anomaly_type', None)
 
     if data_list:
        
-        flat_list = [item for sublist in data_list for item in sublist]
+        #flat_list = [item for sublist in data_list for item in sublist]
 
-        json_data = json.dumps(flat_list)
+        json_data = json.dumps(data_list)
 
         df_data= spark.createDataFrame([(event_time, json_data)], ["time", "data"])
 
