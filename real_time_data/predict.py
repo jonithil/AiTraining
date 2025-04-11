@@ -34,6 +34,7 @@ def predict_from_model():
 
     pred_probs = np.array(response.json()["predictions"])
     pred_classes = np.argmax(pred_probs, axis=1)
+    confidence_scores = np.max(pred_probs, axis=1)  
 
     label_encoder = load("label_encoder.pkl")
     decoded_labels = label_encoder.inverse_transform(pred_classes)
@@ -41,6 +42,7 @@ def predict_from_model():
     result_df = pd.DataFrame({
         'index': original_index,
         'prediction': decoded_labels,
+        'confidence': confidence_scores,
         'timestamp': [datetime.now()] * len(decoded_labels)
     })
     
